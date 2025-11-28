@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import SearchBar from '@/components/SearchBar';
 import ChatList from '@/components/ChatList';
@@ -8,11 +8,61 @@ import CallsView from '@/components/CallsView';
 import GroupsView from '@/components/GroupsView';
 import SettingsView from '@/components/SettingsView';
 import ProfileView from '@/components/ProfileView';
+import { getChats, getMessages, sendMessage, Chat, Message } from '@/lib/api';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('chats');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedChatId, setSelectedChatId] = useState<number | undefined>(1);
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadChats();
+  }, []);
+
+  useEffect(() => {
+    if (selectedChatId) {
+      loadMessages(selectedChatId);
+    }
+  }, [selectedChatId]);
+
+  const loadChats = async () => {
+    try {
+      const data = await getChats(1);
+      setChats(data);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error loading chats:', error);
+      setLoading(false);
+    }
+  };
+
+  const loadMessages = async (chatId: number) => {
+    try {
+      const data = await getMessages(chatId);
+      const formattedMessages = data.map((msg) => ({
+        ...msg,
+        sent: msg.sender_id === 2,
+      }));
+      setMessages(formattedMessages);
+    } catch (error) {
+      console.error('Error loading messages:', error);
+    }
+  };
+
+  const handleSendMessage = async (text: string) => {
+    if (!selectedChatId) return;
+
+    try {
+      await sendMessage(selectedChatId, text, 2);
+      await loadMessages(selectedChatId);
+      await loadChats();
+    } catch (error) {
+      console.error('Error sending message:', error);
+    }
+  };
 
   const mockChats = [
     {
@@ -122,7 +172,8 @@ const Index = () => {
     },
   ];
 
-  const selectedChat = mockChats.find((chat) => chat.id === selectedChatId);
+  const displayChats = chats.length > 0 ? chats : mockChats;
+  const selectedChat = displayChats.find((chat) => chat.id === selectedChatId);
 
   const renderContent = () => {
     switch (activeTab) {
@@ -135,13 +186,17 @@ const Index = () => {
               </div>
               <SearchBar value={searchQuery} onChange={setSearchQuery} placeholder="Поиск чатов" />
               <ChatList
-                chats={mockChats}
+                chats={displayChats}
                 onChatSelect={setSelectedChatId}
                 selectedChatId={selectedChatId}
               />
             </div>
             <div className="flex-1">
-              <ChatWindow chat={selectedChat} messages={mockMessages} />
+              <ChatWindow 
+                chat={selectedChat} 
+                messages={messages.length > 0 ? messages : mockMessages}
+                onSendMessage={handleSendMessage}
+              />
             </div>
           </div>
         );

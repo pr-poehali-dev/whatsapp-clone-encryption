@@ -22,10 +22,25 @@ interface ChatWindowProps {
     online?: boolean;
   };
   messages: Message[];
+  onSendMessage?: (text: string) => void;
 }
 
-export default function ChatWindow({ chat, messages }: ChatWindowProps) {
+export default function ChatWindow({ chat, messages, onSendMessage }: ChatWindowProps) {
   const [messageText, setMessageText] = useState('');
+  
+  const handleSend = () => {
+    if (messageText.trim() && onSendMessage) {
+      onSendMessage(messageText);
+      setMessageText('');
+    }
+  };
+  
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
 
   if (!chat) {
     return (
@@ -108,9 +123,14 @@ export default function ChatWindow({ chat, messages }: ChatWindowProps) {
             placeholder="Введите сообщение"
             value={messageText}
             onChange={(e) => setMessageText(e.target.value)}
+            onKeyPress={handleKeyPress}
             className="flex-1"
           />
-          <Button size="icon" className="bg-primary text-primary-foreground hover:bg-primary/90">
+          <Button 
+            size="icon" 
+            className="bg-primary text-primary-foreground hover:bg-primary/90"
+            onClick={handleSend}
+          >
             <Icon name="Send" size={20} />
           </Button>
         </div>
